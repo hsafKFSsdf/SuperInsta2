@@ -1,5 +1,4 @@
 #import <substrate.h>
-#import "InstagramHeaders.h"
 #import "Tweak.h"
 #import "Utils.h"
 
