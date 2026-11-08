@@ -1,5 +1,7 @@
 #import <substrate.h>
 #import "InstagramHeaders.h"
+#import <UIKit/UIKit.h>
+#import <QuartzCore/QuartzCore.h>
 #import "Tweak.h"
 #import "Utils.h"
 
