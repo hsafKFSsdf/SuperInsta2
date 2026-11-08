@@ -1,7 +1,7 @@
 #import <substrate.h>
-#import "InstagramHeaders.h"
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
+#import "InstagramHeaders.h"
 #import "Tweak.h"
 #import "Utils.h"
 
@@ -75,8 +75,6 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
             || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
         ) {
             NSLog(@"[SCInsta] First run, initializing");
-
-            // Display settings modal on screen
             NSLog(@"[SCInsta] Displaying SCInsta first-time settings modal");
             [SCIUtils showSettingsVC:[self window]];
         }
@@ -93,9 +91,7 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 }
 
 - (void)applicationDidBecomeActive:(id)arg1 {
-
     %orig;
-    
     if ([SCIUtils getBoolPref:@"flex_app_start"]) {
         [[objc_getClass("FLEXManager") sharedManager] showExplorer];
     }
@@ -203,80 +199,38 @@ shouldPersistLastBugReportId:(id)arg6
 // Direct suggested chats (in search bar)
 %hook IGDirectInboxSearchListAdapterDataSource
 - (id)objectsForListAdapter:(id)arg1 {
-
     NSArray *originalObjs = %orig();
     NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
 
     for (id obj in originalObjs) {
         BOOL shouldHide = NO;
 
-        // Section header 
         if ([obj isKindOfClass:%c(IGLabelItemViewModel)]) {
-
-            // Broadcast channels
             if ([[obj valueForKey:@"uniqueIdentifier"] isEqualToString:@"channels"]) {
-                if ([SCIUtils getBoolPref:@"no_suggested_chats"]) {
-                    shouldHide = YES;
-                }
+                if ([SCIUtils getBoolPref:@"no_suggested_chats"]) shouldHide = YES;
             }
-
-            // Ask Meta AI
-            else if ([[obj valueForKey:@"labelTitle"] isEqualToString:@"Ask Meta AI"]) {
-                if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                    shouldHide = YES;
-                }
+            else if ([[obj valueForKey:@"labelTitle"] isEqualToString:@"Ask Meta AI"] || [[obj valueForKey:@"labelTitle"] isEqualToString:@"AI"]) {
+                if ([SCIUtils getBoolPref:@"hide_meta_ai"]) shouldHide = YES;
             }
-
-            // AI
-            else if ([[obj valueForKey:@"labelTitle"] isEqualToString:@"AI"]) {
-                if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                    shouldHide = YES;
-                }
-            }
-            
         }
-
-        // AI agents section
         else if (
             [obj isKindOfClass:%c(IGDirectInboxSearchAIAgentsPillsSectionViewModel)]
            || [obj isKindOfClass:%c(IGDirectInboxSearchAIAgentsSuggestedPromptViewModel)]
            || [obj isKindOfClass:%c(IGDirectInboxSearchAIAgentsSuggestedPromptLoggingViewModel)]
         ) {
-            if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                shouldHide = YES;
-            }
+            if ([SCIUtils getBoolPref:@"hide_meta_ai"]) shouldHide = YES;
         }
-
-        // Recipients list
         else if ([obj isKindOfClass:%c(IGDirectRecipientCellViewModel)]) {
-
-            // Broadcast channels
             if ([[obj recipient] isBroadcastChannel]) {
-                if ([SCIUtils getBoolPref:@"no_suggested_chats"]) {
-                    shouldHide = YES;
-                }
+                if ([SCIUtils getBoolPref:@"no_suggested_chats"]) shouldHide = YES;
             }
-            
-            // Meta AI (special section types)
-            else if (([obj sectionType] == 20) || [obj sectionType] == 18) {
-                if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                    shouldHide = YES;
-                }
-            }
-
-            // Meta AI (catch-all)
-            else if ([[[obj recipient] threadName] isEqualToString:@"Meta AI"]) {
-                if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                    shouldHide = YES;
-                }
+            else if (([obj sectionType] == 20) || [obj sectionType] == 18 || [[[obj recipient] threadName] isEqualToString:@"Meta AI"]) {
+                if ([SCIUtils getBoolPref:@"hide_meta_ai"]) shouldHide = YES;
             }
         }
 
-        if (!shouldHide) {
-            [filteredObjs addObject:obj];
-        }
+        if (!shouldHide) [filteredObjs addObject:obj];
     }
-
     return [filteredObjs copy];
 }
 %end
@@ -284,7 +238,6 @@ shouldPersistLastBugReportId:(id)arg6
 // Direct suggested chats (thread creation view)
 %hook IGDirectThreadCreationViewController
 - (id)objectsForListAdapter:(id)arg1 {
-
     NSArray *originalObjs = %orig();
     NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
 
@@ -292,29 +245,20 @@ shouldPersistLastBugReportId:(id)arg6
         BOOL shouldHide = NO;
 
         if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-            if ([obj isKindOfClass:%c(IGDirectCreateChatCellViewModel)]) {
-                if ([[obj valueForKey:@"title"] isEqualToString:@"AI chats"]) {
-                    shouldHide = YES;
-                }
+            if ([obj isKindOfClass:%c(IGDirectCreateChatCellViewModel)] && [[obj valueForKey:@"title"] isEqualToString:@"AI chats"]) {
+                shouldHide = YES;
             }
-            else if ([obj isKindOfClass:%c(IGDirectRecipientCellViewModel)]) {
-                if ([[[obj recipient] threadName] isEqualToString:@"Meta AI"]) {
-                    shouldHide = YES;
-                }
-            }
-        }
-
-        if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
-            if ([obj isKindOfClass:%c(IGContactInvitesSearchUpsellViewModel)]) {
+            else if ([obj isKindOfClass:%c(IGDirectRecipientCellViewModel)] && [[[obj recipient] threadName] isEqualToString:@"Meta AI"]) {
                 shouldHide = YES;
             }
         }
 
-        if (!shouldHide) {
-            [filteredObjs addObject:obj];
+        if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
+            if ([obj isKindOfClass:%c(IGContactInvitesSearchUpsellViewModel)]) shouldHide = YES;
         }
-    }
 
+        if (!shouldHide) [filteredObjs addObject:obj];
+    }
     return [filteredObjs copy];
 }
 %end
@@ -322,7 +266,6 @@ shouldPersistLastBugReportId:(id)arg6
 // Direct suggested chats (inbox view)
 %hook IGDirectInboxListAdapterDataSource
 - (id)objectsForListAdapter:(id)arg1 {
-
     NSArray *originalObjs = %orig();
     NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
 
@@ -331,32 +274,18 @@ shouldPersistLastBugReportId:(id)arg6
 
         if ([obj isKindOfClass:%c(IGDirectInboxHeaderCellViewModel)]) {
             if ([[obj title] isEqualToString:@"Suggestions"] || [[obj title] hasPrefix:@"Accounts to"]) {
-                if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
-                    shouldHide = YES;
-                }
+                if ([SCIUtils getBoolPref:@"no_suggested_users"]) shouldHide = YES;
             }
         }
-        else if ([obj isKindOfClass:%c(IGDirectInboxSuggestedThreadCellViewModel)]) {
-            if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
-                shouldHide = YES;
-            }
-        }
-        else if ([obj isKindOfClass:%c(IGDiscoverPeopleItemConfiguration)] || [obj isKindOfClass:%c(IGDiscoverPeopleConnectionItemConfiguration)]) {
-            if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
-                shouldHide = YES;
-            }
+        else if ([obj isKindOfClass:%c(IGDirectInboxSuggestedThreadCellViewModel)] || [obj isKindOfClass:%c(IGDiscoverPeopleItemConfiguration)] || [obj isKindOfClass:%c(IGDiscoverPeopleConnectionItemConfiguration)]) {
+            if ([SCIUtils getBoolPref:@"no_suggested_users"]) shouldHide = YES;
         }
         else if ([obj isKindOfClass:%c(IGDirectNotesTrayRowViewModel)]) {
-            if ([SCIUtils getBoolPref:@"hide_notes_tray"]) {
-                shouldHide = YES;
-            }
+            if ([SCIUtils getBoolPref:@"hide_notes_tray"]) shouldHide = YES;
         }
 
-        if (!shouldHide) {
-            [filteredObjs addObject:obj];
-        }
+        if (!shouldHide) [filteredObjs addObject:obj];
     }
-
     return [filteredObjs copy];
 }
 %end
@@ -364,7 +293,6 @@ shouldPersistLastBugReportId:(id)arg6
 // Explore page results
 %hook IGSearchListKitDataSource
 - (id)objectsForListAdapter:(id)arg1 {
-
     NSArray *originalObjs = %orig();
     NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
 
@@ -372,40 +300,28 @@ shouldPersistLastBugReportId:(id)arg6
         BOOL shouldHide = NO;
 
         if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-            if ([obj isKindOfClass:%c(IGLabelItemViewModel)]) {
-                if ([[obj valueForKey:@"labelTitle"] isEqualToString:@"Ask Meta AI"]) {
-                    shouldHide = YES;
-                }
+            if ([obj isKindOfClass:%c(IGLabelItemViewModel)] && [[obj valueForKey:@"labelTitle"] isEqualToString:@"Ask Meta AI"]) {
+                shouldHide = YES;
             }
             else if ([obj isKindOfClass:%c(IGSearchNullStateUpsellViewModel)] || [obj isKindOfClass:%c(IGSearchResultNestedGroupViewModel)]) {
                 shouldHide = YES;
             }
             else if ([obj isKindOfClass:%c(IGSearchResultViewModel)]) {
-                if ([obj itemType] == 6 || [[[obj title] string] isEqualToString:@"meta.ai"]) {
-                    shouldHide = YES;
-                }
+                if ([obj itemType] == 6 || [[[obj title] string] isEqualToString:@"meta.ai"]) shouldHide = YES;
             }
         }
 
         if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
-            if ([obj isKindOfClass:%c(IGLabelItemViewModel)]) {
-                if ([[obj valueForKey:@"labelTitle"] isEqualToString:@"Suggested for you"]) {
-                    shouldHide = YES;
-                }
-            }
-            else if ([obj isKindOfClass:%c(IGDiscoverPeopleItemConfiguration)]) {
+            if ([obj isKindOfClass:%c(IGLabelItemViewModel)] && [[obj valueForKey:@"labelTitle"] isEqualToString:@"Suggested for you"]) {
                 shouldHide = YES;
             }
-            else if ([obj isKindOfClass:%c(IGSeeAllItemConfiguration)] && ((IGSeeAllItemConfiguration *)obj).destination == 4) {
+            else if ([obj isKindOfClass:%c(IGDiscoverPeopleItemConfiguration)] || ([obj isKindOfClass:%c(IGSeeAllItemConfiguration)] && ((IGSeeAllItemConfiguration *)obj).destination == 4)) {
                 shouldHide = YES;
             }
         }
 
-        if (!shouldHide) {
-            [filteredObjs addObject:obj];
-        }
+        if (!shouldHide) [filteredObjs addObject:obj];
     }
-
     return [filteredObjs copy];
 }
 %end
@@ -413,7 +329,6 @@ shouldPersistLastBugReportId:(id)arg6
 // Story tray
 %hook IGMainStoryTrayDataSource
 - (id)allItemsForTrayUsingCachedValue:(BOOL)cached {
-
     NSArray *originalObjs = %orig(cached);
     NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
 
@@ -423,9 +338,7 @@ shouldPersistLastBugReportId:(id)arg6
         if ([SCIUtils getBoolPref:@"no_suggested_users"]) {
             if ([obj isKindOfClass:%c(IGStoryTrayViewModel)]) {
                 NSNumber *type = [((IGStoryTrayViewModel *)obj) valueForKey:@"type"];
-                if ([type isEqual:@(8)] || [type isEqual:@(9)]) {
-                    shouldHide = YES;
-                }
+                if ([type isEqual:@(8)] || [type isEqual:@(9)]) shouldHide = YES;
             }
         }
 
@@ -435,11 +348,8 @@ shouldPersistLastBugReportId:(id)arg6
             }
         }
 
-        if (!shouldHide) {
-            [filteredObjs addObject:obj];
-        }
+        if (!shouldHide) [filteredObjs addObject:obj];
     }
-
     return [filteredObjs copy];
 }
 %end
@@ -453,23 +363,17 @@ shouldPersistLastBugReportId:(id)arg6
 
 %hook IGDSMenu
 - (id)initWithMenuItems:(NSArray<IGDSMenuItem *> *)originalObjs edr:(BOOL)edr headerLabelText:(id)headerLabelText {
-
     NSMutableArray *filteredObjs = [NSMutableArray arrayWithCapacity:[originalObjs count]];
 
     for (id obj in originalObjs) {
         BOOL shouldHide = NO;
 
         if ([[obj valueForKey:@"title"] isEqualToString:@"AI images"] || [[obj valueForKey:@"title"] isEqualToString:@"Meta AI"]) {
-            if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                shouldHide = YES;
-            }
+            if ([SCIUtils getBoolPref:@"hide_meta_ai"]) shouldHide = YES;
         }
 
-        if (!shouldHide) {
-            [filteredObjs addObject:obj];
-        }
+        if (!shouldHide) [filteredObjs addObject:obj];
     }
-
     return %orig([filteredObjs copy], edr, headerLabelText);
 }
 %end
@@ -572,11 +476,19 @@ shouldPersistLastBugReportId:(id)arg6
 %end
 
 %hook IGBadgeView
-- (void)layoutSubviews { %orig; self.hidden = YES; self.alpha = 0.0; }
+- (void)layoutSubviews {
+    %orig;
+    ((UIView *)self).hidden = YES;
+    ((UIView *)self).alpha = 0.0;
+}
 %end
 
 %hook _UIBadgeView
-- (void)layoutSubviews { %orig; self.hidden = YES; self.alpha = 0.0; }
+- (void)layoutSubviews {
+    %orig;
+    ((UIView *)self).hidden = YES;
+    ((UIView *)self).alpha = 0.0;
+}
 %end
 
 // 2. Transformă cercurile de Story din roz/portocaliu în Slate-Grey
