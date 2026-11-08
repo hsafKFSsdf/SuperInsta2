@@ -1,6 +1,4 @@
 #import <substrate.h>
-#import <UIKit/UIKit.h>
-#import <QuartzCore/QuartzCore.h>
 #import "InstagramHeaders.h"
 #import "Tweak.h"
 #import "Utils.h"
@@ -17,14 +15,12 @@
 // * Tweak version *
 NSString *SCIVersionString = @"v1.1.1";
 
-// Păstrăm variabila ca să nu dea eroare de compilare în Settings, dar rămâne dezactivată
 BOOL dmVisualMsgsViewedButtonEnabled = false;
 
 // Tweak first-time setup
 %hook IGInstagramAppDelegate
 - (_Bool)application:(UIApplication *)application willFinishLaunchingWithOptions:(id)arg2 {
 
-    // Default SCInsta config (Optimizat pentru curățenie din fabrică)
     NSDictionary *sciDefaults = @{
         @"hide_ads": @(YES),
         @"hide_meta_ai": @(YES),
@@ -52,7 +48,6 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
     };
     [[NSUserDefaults standardUserDefaults] registerDefaults:sciDefaults];
     
-    // Override instagram defaults
     if ([SCIUtils getBoolPref:@"liquid_glass_buttons"]) {
         [[NSUserDefaults standardUserDefaults] setValue:@(YES) forKey:@"instagram.override.project.lucent.navigation"];
     }
@@ -63,10 +58,8 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
     return %orig;
 }
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
-
     %orig;
 
-    // Open settings for first-time users
     double openDelay = [SCIUtils getBoolPref:@"tweak_settings_app_launch"] ? 0.0 : 5.0;
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(openDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -75,7 +68,6 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
             || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
         ) {
             NSLog(@"[SCInsta] First run, initializing");
-            NSLog(@"[SCInsta] Displaying SCInsta first-time settings modal");
             [SCIUtils showSettingsVC:[self window]];
         }
     });
@@ -116,7 +108,6 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 }
 %end
 
-// Disable sending modded insta bug reports
 %hook IGWindow
 - (void)showDebugMenu {
     return;
@@ -134,67 +125,6 @@ shouldPersistLastBugReportId:(id)arg6
     return nil;
 }
 %end
-
-// Disable anti-screenshot feature on visual messages
-%hook IGStoryViewerContainerView
-- (void)setShouldBlockScreenshot:(BOOL)arg1 viewModel:(id)arg2 { VOID_HANDLESCREENSHOT(%orig); }
-%end
-
-// Disable screenshot logging/detection
-%hook IGDirectVisualMessageViewerSession
-- (id)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { NONVOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGDirectVisualMessageReplayService
-- (id)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { NONVOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGDirectVisualMessageReportService
-- (id)visualMessageViewerController:(id)arg1 didDetectScreenshotForVisualMessage:(id)arg2 atIndex:(NSInteger)arg3 { NONVOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGDirectVisualMessageScreenshotSafetyLogger
-- (id)initWithUserSession:(id)arg1 entryPoint:(NSInteger)arg2 {
-    if ([SCIUtils getBoolPref:@"remove_screenshot_alert"]) {
-        NSLog(@"[SCInsta] Disable visual message screenshot safety logger");
-        return nil;
-    }
-    return %orig;
-}
-%end
-
-%hook IGScreenshotObserver
-- (id)initForController:(id)arg1 { NONVOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGScreenshotObserverDelegate
-- (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
-- (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGDirectMediaViewerViewController
-- (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
-- (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGStoryViewerViewController
-- (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
-- (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGSundialFeedViewController
-- (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
-- (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
-%end
-
-%hook IGDirectVisualMessageViewerController
-- (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
-- (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
-%end
-
-/////////////////////////////////////////////////////////////////////////////
-
-// Hide items
 
 // Direct suggested chats (in search bar)
 %hook IGDirectInboxSearchListAdapterDataSource
@@ -378,8 +308,6 @@ shouldPersistLastBugReportId:(id)arg6
 }
 %end
 
-/////////////////////////////////////////////////////////////////////////////
-
 // Confirm buttons
 
 %hook IGFeedItemUFICell
@@ -428,8 +356,6 @@ shouldPersistLastBugReportId:(id)arg6
 }
 %end
 
-/////////////////////////////////////////////////////////////////////////////
-
 // FLEX explorer gesture handler
 %hook IGRootViewController
 - (void)viewDidLoad {
@@ -439,7 +365,7 @@ shouldPersistLastBugReportId:(id)arg6
     longPress.numberOfTouchesRequired = 5;
     [self.view addGestureRecognizer:longPress];
 }
-%new - (void)handleLongPress:(UILongPressGestureRecognizer *)sender {
+%new - (void)handleLongPress:(UILongPressGestureRecognizer *> *)sender {
     if (sender.state != UIGestureRecognizerStateBegan) return;
     if ([SCIUtils getBoolPref:@"flex_instagram"]) {
         [[objc_getClass("FLEXManager") sharedManager] showExplorer];
@@ -456,62 +382,5 @@ shouldPersistLastBugReportId:(id)arg6
 - (unsigned long long)crashCount {
     if ([SCIUtils getBoolPref:@"disable_safe_mode"]) return 0;
     return %orig;
-}
-%end
-
-/////////////////////////////////////////////////////////////////////////////
-// --- SUPERINSTA CUSTOM AESTHETIC (Slate-Grey, Fără Buline, Fără Reels) ---
-/////////////////////////////////////////////////////////////////////////////
-
-// 1. Elimină toate bulinele roșii și notificările de tip punct
-%hook UIView
-- (void)layoutSubviews {
-    %orig;
-    NSString *cls = NSStringFromClass([self class]);
-    if ([cls containsString:@"Badge"] || [cls containsString:@"UnreadBubble"] || [cls containsString:@"DotView"]) {
-        self.hidden = YES;
-        self.alpha = 0.0;
-    }
-}
-%end
-
-%hook IGBadgeView
-- (void)layoutSubviews {
-    %orig;
-    ((UIView *)self).hidden = YES;
-    ((UIView *)self).alpha = 0.0;
-}
-%end
-
-%hook _UIBadgeView
-- (void)layoutSubviews {
-    %orig;
-    ((UIView *)self).hidden = YES;
-    ((UIView *)self).alpha = 0.0;
-}
-%end
-
-// 2. Transformă cercurile de Story din roz/portocaliu în Slate-Grey
-%hook CAGradientLayer
-- (void)setColors:(NSArray *)colors {
-    if (colors && [colors count] > 1) {
-        id slateTop = (id)[UIColor colorWithRed:0.42 green:0.45 blue:0.48 alpha:1.0].CGColor;
-        id slateBot = (id)[UIColor colorWithRed:0.22 green:0.24 blue:0.27 alpha:1.0].CGColor;
-        colors = @[slateTop, slateBot];
-    }
-    %orig(colors);
-}
-%end
-
-// 3. Ascunde butonul de Reels din bara de jos
-%hook IGTabBarButton
-- (void)layoutSubviews {
-    %orig;
-    NSString *label = [self.accessibilityLabel lowercaseString];
-    if (label && ([label containsString:@"reels"] || [label containsString:@"clips"])) {
-        self.hidden = YES;
-        self.userInteractionEnabled = NO;
-        self.frame = CGRectZero;
-    }
 }
 %end
